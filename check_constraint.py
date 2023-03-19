@@ -1,22 +1,15 @@
+import sys
 import sqlparse as sp
 
-sqlFile = "create.sql"
+# Example command: python3 check_constraint.py input.sql output.sql
 
-inputFile = open(sqlFile, "r")
-outputFile =  open("modified.sql", "w")
-raw = inputFile.read()
-raw = sp.format(raw, keyword_case="upper", strip_whitespace=True, identifier_case="upper", use_space_around_operators=True)
-statements = sp.parse(raw)
-
-
-def createNewSqlQuery(tableName, tableBody):
+def create_new_query(tableName, tableBody):
     s = "DROP TABLE IF EXISTS {};\n\n".format(tableName)
     s+= "CREATE TABLE {}\n".format(tableName)
     s+= "{}\n\n".format(tableBody)
     return s
 
-
-def getColumns(statement):
+def get_columns(statement):
     # https://stackoverflow.com/questions/63247330/python-sql-parser-to-get-the-column-name-and-data-type
 
     columnNames = []
@@ -35,7 +28,7 @@ def getColumns(statement):
             break
     return columnNames
 
-def getBodyWithoutChecks(bodyTokens):
+def get_body_without_checks(bodyTokens):
     lenn = len(bodyTokens)
     idx = 0
     modifiedBody = ""
@@ -51,11 +44,10 @@ def getBodyWithoutChecks(bodyTokens):
         checks.append(str(bodyTokens[idx + 2]))
         idx+=3
     checks = list(map(lambda x: x[1:-1].split(' '), checks))
-    print(checks)
     return checks, modifiedBody
 
 
-def createCheckFunction(tableName, checks, columns):
+def create_check_function(tableName, checks, columns):
     # checks = [(LHS, operator, RHS)]
     s = "CREATE OR REPLACE FUNCTION {}_check_function()\n".format(tableName)
     s+=("  RETURNS TRIGGER\n")
@@ -76,12 +68,28 @@ def createCheckFunction(tableName, checks, columns):
     s+=("  $$\n\n")
     return s
     
-def createTrigger(tableName):
+def create_trigger(tableName):
     # checks = [(LHS, operator, RHS)]
     s = "CREATE TRIGGER {}_check_trigger\n".format(tableName)
     s+=("BEFORE INSERT ON {}\n".format(tableName))
     s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function\n".format(tableName))
     return s
+
+if len(sys.argv) != 3:
+    raise Exception("Missing argument!")
+
+input_path = sys.argv[1]
+output_path = sys.argv[2]
+
+if (input_path == output_path):
+    raise Exception("Input and output path cannot be the same!")
+
+input_file = open(sys.argv[1], "r")
+output_file =  open(sys.argv[2], "w")
+raw = input_file.read()
+raw = sp.format(raw, keyword_case="upper", strip_whitespace=True, identifier_case="upper", use_space_around_operators=True)
+statements = sp.parse(raw)
+
 for s in statements:
     if s.get_type() != 'CREATE':
         continue
@@ -90,15 +98,14 @@ for s in statements:
     tableName = tokens[4]
 
     bodyTokens = tokens[6].tokens
-    checks, modifiedBody = getBodyWithoutChecks(bodyTokens)
-    columns = getColumns(s)
-
+    checks, modifiedBody = get_body_without_checks(bodyTokens)
+    columns = get_columns(s)
     
-    newSqlQuery = createNewSqlQuery(tableName, modifiedBody)
+    newSqlQuery = create_new_query(tableName, modifiedBody)
     newSqlQuery = sp.format(newSqlQuery, keyword_case="upper", identifier_case="upper")
     
-    outputFile.write(newSqlQuery)
-    outputFile.write(createCheckFunction(tableName, checks, columns))
-    outputFile.write(createTrigger(tableName))
+    output_file.write(newSqlQuery)
+    output_file.write(create_check_function(tableName, checks, columns))
+    output_file.write(create_trigger(tableName))
 
 
