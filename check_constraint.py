@@ -1,4 +1,4 @@
-import sys
+import sys, argparse
 import sqlparse as sp
 
 # Example command: python3 check_constraint.py input.sql output.sql
@@ -75,17 +75,20 @@ def create_trigger(tableName):
     s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function\n".format(tableName))
     return s
 
-if len(sys.argv) != 3:
-    raise Exception("Missing argument!")
+parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
+parser.add_argument('input_path', help='path to target SQL file')
+parser.add_argument('output_path', help='path to output processed SQL file')
 
-input_path = sys.argv[1]
-output_path = sys.argv[2]
+args = parser.parse_args()
+
+input_path = args.input_path
+output_path = args.output_path
 
 if (input_path == output_path):
     raise Exception("Input and output path cannot be the same!")
 
-input_file = open(sys.argv[1], "r")
-output_file =  open(sys.argv[2], "w")
+input_file = open(input_path, "r")
+output_file =  open(output_path, "w")
 raw = input_file.read()
 raw = sp.format(raw, keyword_case="upper", strip_whitespace=True, identifier_case="upper", use_space_around_operators=True)
 statements = sp.parse(raw)
