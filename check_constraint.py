@@ -103,7 +103,6 @@ def create_trigger(tableName, idx = ""):
 def execute_ddl_query(cursor, filePath):
     with open(filePath, 'r') as file:
         query = file.read()
-        print(filePath + ", content: " + query)
         cursor.execute(query)
 
 
@@ -203,6 +202,7 @@ for s in statements:
     else:
         output_file.write(create_check_function(tableName, checks, columns))
         output_file.write(create_trigger(tableName))
-
+input_file.close()
+output_file.close()
 if args.command == 'execute':
     compare_performance(args.dbhost, args.dbname, args.username, args.password, input_path, output_path, args.sql_file_path)

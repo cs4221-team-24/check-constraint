@@ -1,1 +1,1 @@
-INSERT INTO Persons VALUES(1, 'last', 'first', 22)
+INSERT INTO Persons VALUES(1, 'last', 'first', 22), (2, 'last', 'first', 22), (5, 'last', 'first', 22), (3, 'last', 'first', 22), (4, 'last', 'first', 22)
