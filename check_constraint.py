@@ -58,11 +58,27 @@ def create_check_function(tableName, checks, columns):
     s+=("	  IF ")
     conditions = []
     for check in checks:
-        if check[2] in columns:
-            conditions.append("NEW.{} {} NEW.{}".format(check[0], check[1], check[2]))
-        else:
-            conditions.append("NEW.{} {} {}".format(check[0], check[1], check[2]))
-    
+        # example arrays of check
+        # [LastName, !=, 'fazil', OR, LastName, !=, "jim"]
+        # [LastName, !=, 'fazil']
+        cLen = len(check)
+
+        combinedConditions = ""
+        idx = 0
+        while idx < cLen:
+            if check[idx + 2] in columns:
+                combinedConditions+="NEW.{} {} NEW.{}".format(check[idx], check[idx + 1], check[idx + 2])
+            else:
+                combinedConditions+="NEW.{} {} {}".format(check[idx], check[idx + 1], check[idx + 2])
+
+            if idx + 3 < cLen:
+                combinedConditions+= " {} ".format(check[idx + 3])
+            idx+= 4
+
+        if cLen > 3:
+            combinedConditions = "(" + combinedConditions + ")"
+        conditions.append(combinedConditions)
+
     s+=" AND ".join(conditions)
     s+=(" THEN\n")
     s+=("		   return NEW\n")
