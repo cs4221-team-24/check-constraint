@@ -48,9 +48,10 @@ def get_body_without_checks(bodyTokens):
     return checks, modifiedBody
 
 
-def create_check_function(tableName, checks, columns):
+def create_check_function(tableName, checks, columns, idx = ""):
+    function_name = "{}_{}".format(tableName,idx)
     # checks = [(LHS, operator, RHS)]
-    s = "\n\nCREATE OR REPLACE FUNCTION {}_check_function()\n".format(tableName)
+    s = "\n\nCREATE OR REPLACE FUNCTION {}_check_function()\n".format(function_name)
     s+=("  RETURNS TRIGGER\n")
     s+=("  LANGUAGE PLPGSQL\n")
     s+=("  AS\n")
@@ -89,21 +90,25 @@ def create_check_function(tableName, checks, columns):
     s+=("  $$;\n\n")
     return s
     
-def create_trigger(tableName):
+def create_trigger(tableName, idx = ""):
     # checks = [(LHS, operator, RHS)]
-    s = "CREATE TRIGGER {}_check_trigger\n".format(tableName)
+    function_name = "{}_{}".format(tableName,idx)
+    s = "CREATE TRIGGER {}_check_trigger\n".format(function_name)
     s+=("BEFORE INSERT ON {}\n".format(tableName))
-    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function();\n".format(tableName))
+    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function();\n".format(function_name))
     return s
 
 parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
 parser.add_argument('input_path', help='path to target SQL file')
 parser.add_argument('output_path', help='path to output processed SQL file')
+parser.add_argument('-s', action='store_true')
 
 args = parser.parse_args()
 
+flag_s = args.s
 input_path = args.input_path
 output_path = args.output_path
+
 
 if (input_path == output_path):
     raise Exception("Input and output path cannot be the same!")
@@ -130,8 +135,12 @@ for s in statements:
     
     output_file.write(newSqlQuery)
 
-    for idx, check in enumerate(checks):
-        output_file.write(create_check_function(tableName + str(idx), [check], columns))
-        output_file.write(create_trigger(tableName + str(idx)))
+    if flag_s:
+        for idx, check in enumerate(checks):
+            output_file.write(create_check_function(tableName, [check], columns, str(idx)))
+            output_file.write(create_trigger(tableName, str(idx)))
+    else:
+        output_file.write(create_check_function(tableName, checks, columns))
+        output_file.write(create_trigger(tableName))
 
 
