@@ -202,7 +202,9 @@ for s in statements:
     else:
         output_file.write(create_check_function(tableName, checks, columns))
         output_file.write(create_trigger(tableName))
+
 input_file.close()
 output_file.close()
+
 if args.command == 'execute':
     compare_performance(args.dbhost, args.dbname, args.username, args.password, input_path, output_path, args.sql_file_path)
