@@ -133,12 +133,12 @@ def compare_performance(host, name, user, password, input, output, insert):
     # Execute the queries in the .sql file
     execute_ddl_query(cursor, input)
     check_constraint_time = execute_dml_query(cursor, insert)
-    print("Insert execution time for table with check constraints: {}".format(check_constraint_time))
+    print("Insert execution time for table with check constraints: {}ms".format(check_constraint_time))
 
     # Execute the queries in output file
     execute_ddl_query(cursor, output)
     trigger_time = execute_dml_query(cursor, insert)
-    print("Insert execution time for table with triggers: {}".format(trigger_time))
+    print("Insert execution time for table with triggers: {}ms".format(trigger_time))
 
     # Compare performance
     if check_constraint_time > trigger_time:
