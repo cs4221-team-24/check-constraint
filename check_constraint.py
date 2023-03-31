@@ -6,7 +6,8 @@ import sqlparse as sp
 def create_new_query(tableName, tableBody):
     s = "DROP TABLE IF EXISTS {};\n\n".format(tableName)
     s+= "CREATE TABLE {}\n".format(tableName)
-    s+= "{}\n\n".format(tableBody)
+    s+= "{}".format(tableBody)
+    s+= ";"
     return s
 
 def get_columns(statement):
@@ -47,32 +48,54 @@ def get_body_without_checks(bodyTokens):
     return checks, modifiedBody
 
 
-def create_check_function(tableName, checks, columns):
+def create_check_function(tableName, checks, columns, idx = ""):
+    function_name = "{}_{}".format(tableName,idx)
     # checks = [(LHS, operator, RHS)]
-    s = "CREATE OR REPLACE FUNCTION {}_check_function()\n".format(tableName)
+    s = "\n\nCREATE OR REPLACE FUNCTION {}_check_function()\n".format(function_name)
     s+=("  RETURNS TRIGGER\n")
     s+=("  LANGUAGE PLPGSQL\n")
     s+=("  AS\n")
     s+=("  $$\n")
     s+=("  BEGIN\n")
+    s+=("	  IF ")
+    conditions = []
     for check in checks:
-        if check[2] in columns:
-            s+=("	  IF NEW.{} {} NEW.{} THEN\n").format(check[0], check[1], check[2])
-        else:
-            s+=("	  IF NEW.{} {} {} THEN\n").format(check[0], check[1], check[2])
-        s+=("		   return NULL\n")
-        s+=("	  END IF;\n")
-    
-    s+=("	  RETURN NEW;\n")
+        # example arrays of check
+        # [LastName, !=, 'fazil', OR, LastName, !=, "jim"]
+        # [LastName, !=, 'fazil']
+        cLen = len(check)
+
+        combinedConditions = ""
+        idx = 0
+        while idx < cLen:
+            if check[idx + 2] in columns:
+                combinedConditions+="NEW.{} {} NEW.{}".format(check[idx], check[idx + 1], check[idx + 2])
+            else:
+                combinedConditions+="NEW.{} {} {}".format(check[idx], check[idx + 1], check[idx + 2])
+
+            if idx + 3 < cLen:
+                combinedConditions+= " {} ".format(check[idx + 3])
+            idx+= 4
+
+        if cLen > 3:
+            combinedConditions = "(" + combinedConditions + ")"
+        conditions.append(combinedConditions)
+
+    s+=" AND ".join(conditions)
+    s+=(" THEN\n")
+    s+=("		   return NEW;\n")
+    s+=("	  END IF;\n")
+    s+=("	  RETURN NULL;\n")
     s+=("  END;\n")
-    s+=("  $$\n\n")
+    s+=("  $$;\n\n")
     return s
     
-def create_trigger(tableName):
+def create_trigger(tableName, idx = ""):
     # checks = [(LHS, operator, RHS)]
-    s = "CREATE TRIGGER {}_check_trigger\n".format(tableName)
+    function_name = "{}_{}".format(tableName,idx)
+    s = "CREATE TRIGGER {}_check_trigger\n".format(function_name)
     s+=("BEFORE INSERT ON {}\n".format(tableName))
-    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function\n".format(tableName))
+    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function();\n".format(function_name))
     return s
 
 parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
@@ -86,11 +109,14 @@ execute.add_argument('--dbname', type=str, required=True, help='database name')
 execute.add_argument('--username', type=str, required=True, help='username for database')
 execute.add_argument('--password', type=str, required=True, help='password for database')
 execute.add_argument('--sql_file_path', type=str, required=True, help='file path to .sql file with data to insert into db')
+parser.add_argument('-s', action='store_true')
 
 args = parser.parse_args()
 
+flag_s = args.s
 input_path = args.input_path
 output_path = args.output_path
+
 
 if (input_path == output_path):
     raise Exception("Input and output path cannot be the same!")
@@ -116,7 +142,13 @@ for s in statements:
     newSqlQuery = sp.format(newSqlQuery, keyword_case="upper", identifier_case="upper")
     
     output_file.write(newSqlQuery)
-    output_file.write(create_check_function(tableName, checks, columns))
-    output_file.write(create_trigger(tableName))
+
+    if flag_s:
+        for idx, check in enumerate(checks):
+            output_file.write(create_check_function(tableName, [check], columns, str(idx)))
+            output_file.write(create_trigger(tableName, str(idx)))
+    else:
+        output_file.write(create_check_function(tableName, checks, columns))
+        output_file.write(create_trigger(tableName))
 
 
