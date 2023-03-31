@@ -129,7 +129,9 @@ for s in statements:
     newSqlQuery = sp.format(newSqlQuery, keyword_case="upper", identifier_case="upper")
     
     output_file.write(newSqlQuery)
-    output_file.write(create_check_function(tableName, checks, columns))
-    output_file.write(create_trigger(tableName))
+
+    for idx, check in enumerate(checks):
+        output_file.write(create_check_function(tableName + str(idx), [check], columns))
+        output_file.write(create_trigger(tableName + str(idx)))
 
 
