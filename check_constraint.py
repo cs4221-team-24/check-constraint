@@ -31,22 +31,40 @@ def get_columns(statement):
     return columnNames
 
 def get_body_without_checks(bodyTokens):
-    lenn = len(bodyTokens)
-    idx = 0
-    modifiedBody = ""
+    modifiedBody = []
     checks = []
 
-    
-    while idx < lenn:
-        if "CHECK" != str(bodyTokens[idx]):
-            modifiedBody+=str(bodyTokens[idx])
-            idx+=1
-            continue
-        # account for whitespace
-        checks.append(str(bodyTokens[idx + 2]))
-        idx+=3
+    # flatten bodyTokens
+    body = ""
+    for i in range(1, len(bodyTokens) - 1):
+        token = bodyTokens[i]
+        # print(token)
+        body += str(token)
+    for line in body.split(","):
+        flag1 = line.find("CONSTRAINT")
+        flag2 = line.find("CHECK")
+        # flag3 = line.find("PRIMARY KEY")
+
+        # If there is a check statement
+        if flag2 > -1:
+            
+            # if the check statement is in a constraint line, remove constraint name
+            if flag1 == -1:
+                if line[:flag2].strip() != "":
+                    modifiedBody.append(line[:flag2])
+
+            checkStatement = line[flag2:]
+            parameters = checkStatement[checkStatement.find("("):]
+            parameters = parameters[1:parameters.find(")")]
+            checks.append("(" + parameters + ")")
+        else:
+            modifiedBody.append(line)
+
     checks = list(map(lambda x: x[1:-1].split(' '), checks))
-    return checks, modifiedBody
+
+    # for x in modifiedBody:
+    #     print(x)
+    return checks, "(" + ",".join(modifiedBody) + ")"
 
 
 def create_check_function(tableName, checks, columns, idx = ""):
@@ -69,14 +87,25 @@ def create_check_function(tableName, checks, columns, idx = ""):
         combinedConditions = ""
         idx = 0
         while idx < cLen:
-            if check[idx + 2] in columns:
-                combinedConditions+="NEW.{} {} NEW.{}".format(check[idx], check[idx + 1], check[idx + 2])
-            else:
-                combinedConditions+="NEW.{} {} {}".format(check[idx], check[idx + 1], check[idx + 2])
+            LHS = check[idx]
+            idx+=1
+            OPERATOR = check[idx]
+            idx+=1
+            RHS = check[idx]
 
-            if idx + 3 < cLen:
-                combinedConditions+= " {} ".format(check[idx + 3])
-            idx+= 4
+            if RHS == "NOT":
+                OPERATOR+=" NOT"
+                idx+=1
+                RHS = check[idx]
+
+            if RHS in columns:
+                combinedConditions+="NEW.{} {} NEW.{}".format(LHS, OPERATOR, RHS)
+            else:
+                combinedConditions+="NEW.{} {} {}".format(LHS, OPERATOR, RHS)
+
+            if idx + 1 < cLen:
+                combinedConditions+= " {} ".format(check[idx + 1])
+            idx+= 2
 
         if cLen > 3:
             combinedConditions = "(" + combinedConditions + ")"
