@@ -6,7 +6,8 @@ import sqlparse as sp
 def create_new_query(tableName, tableBody):
     s = "DROP TABLE IF EXISTS {};\n\n".format(tableName)
     s+= "CREATE TABLE {}\n".format(tableName)
-    s+= "{}\n\n".format(tableBody)
+    s+= "{}".format(tableBody)
+    s+= ";"
     return s
 
 def get_columns(statement):
@@ -49,7 +50,7 @@ def get_body_without_checks(bodyTokens):
 
 def create_check_function(tableName, checks, columns):
     # checks = [(LHS, operator, RHS)]
-    s = "CREATE OR REPLACE FUNCTION {}_check_function()\n".format(tableName)
+    s = "\n\nCREATE OR REPLACE FUNCTION {}_check_function()\n".format(tableName)
     s+=("  RETURNS TRIGGER\n")
     s+=("  LANGUAGE PLPGSQL\n")
     s+=("  AS\n")
@@ -81,18 +82,18 @@ def create_check_function(tableName, checks, columns):
 
     s+=" AND ".join(conditions)
     s+=(" THEN\n")
-    s+=("		   return NEW\n")
+    s+=("		   return NEW;\n")
     s+=("	  END IF;\n")
     s+=("	  RETURN NULL;\n")
     s+=("  END;\n")
-    s+=("  $$\n\n")
+    s+=("  $$;\n\n")
     return s
     
 def create_trigger(tableName):
     # checks = [(LHS, operator, RHS)]
     s = "CREATE TRIGGER {}_check_trigger\n".format(tableName)
     s+=("BEFORE INSERT ON {}\n".format(tableName))
-    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function\n".format(tableName))
+    s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function();\n".format(tableName))
     return s
 
 parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
