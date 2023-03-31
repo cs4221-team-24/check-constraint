@@ -99,8 +99,16 @@ def create_trigger(tableName, idx = ""):
     return s
 
 parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
-parser.add_argument('input_path', help='path to target SQL file')
-parser.add_argument('output_path', help='path to output processed SQL file')
+subparser = parser.add_subparsers(dest='command')
+parser.add_argument('-i', '--input_path', required=True, help='path to target SQL file')
+parser.add_argument('-o', '--output_path', required=True, help='path to output processed SQL file. Must be different from the input file')
+
+execute = subparser.add_parser('execute', help='run python3 check_constraint.py execute -h to see help options')
+execute.add_argument('--dbhost', type=str, required=True, help='database host')
+execute.add_argument('--dbname', type=str, required=True, help='database name')
+execute.add_argument('--username', type=str, required=True, help='username for database')
+execute.add_argument('--password', type=str, required=True, help='password for database')
+execute.add_argument('--sql_file_path', type=str, required=True, help='file path to .sql file with data to insert into db')
 parser.add_argument('-s', action='store_true')
 
 args = parser.parse_args()
