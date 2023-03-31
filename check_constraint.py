@@ -55,15 +55,19 @@ def create_check_function(tableName, checks, columns):
     s+=("  AS\n")
     s+=("  $$\n")
     s+=("  BEGIN\n")
+    s+=("	  IF ")
+    conditions = []
     for check in checks:
         if check[2] in columns:
-            s+=("	  IF NEW.{} {} NEW.{} THEN\n").format(check[0], check[1], check[2])
+            conditions.append("NEW.{} {} NEW.{}".format(check[0], check[1], check[2]))
         else:
-            s+=("	  IF NEW.{} {} {} THEN\n").format(check[0], check[1], check[2])
-        s+=("		   return NULL\n")
-        s+=("	  END IF;\n")
+            conditions.append("NEW.{} {} {}".format(check[0], check[1], check[2]))
     
-    s+=("	  RETURN NEW;\n")
+    s+=" AND ".join(conditions)
+    s+=(" THEN\n")
+    s+=("		   return NEW\n")
+    s+=("	  END IF;\n")
+    s+=("	  RETURN NULL;\n")
     s+=("  END;\n")
     s+=("  $$\n\n")
     return s

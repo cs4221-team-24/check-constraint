@@ -9,16 +9,10 @@ CREATE OR REPLACE FUNCTION PERSONS_check_function()
   AS
   $$
   BEGIN
-	  IF NEW.LASTNAME != 0 THEN
-		   return NULL
+	  IF NEW.LASTNAME != 'fazil' AND NEW.FIRSTNAME != NEW.LASTNAME AND NEW.AGE >= 18 THEN
+		   return NEW
 	  END IF;
-	  IF NEW.FIRSTNAME != NEW.LASTNAME THEN
-		   return NULL
-	  END IF;
-	  IF NEW.AGE >= 18 THEN
-		   return NULL
-	  END IF;
-	  RETURN NEW;
+	  RETURN NULL;
   END;
   $$
 
