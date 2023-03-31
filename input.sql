@@ -1,9 +1,9 @@
+DROP TABLE IF EXISTS PERSONS;
+
 CREATE TABLE Persons (
     ID int NOT NULL,
-    LastName varchar(255)CHECK (LastName != 0),
-    FirstName varchar(255) CHECK (FirstName != LastName),
-    Age int CHECK (Age>=18),
+    LASTNAME varchar(255)CHECK (LASTNAME != 'fazil'),
+    FIRSTNAME varchar(255) CHECK (FIRSTNAME != LASTNAME),
+    AGE int CHECK (AGE>=18),
     PRIMARY KEY (ID)
 );
-
-SELECT * FROM hello;

@@ -1,0 +1,1 @@
+INSERT INTO Persons VALUES(1, 'last', 'first', 22)
