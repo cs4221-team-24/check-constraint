@@ -1,4 +1,4 @@
-import sys, argparse
+import argparse
 import sqlparse as sp
 import psycopg2
 
@@ -66,7 +66,6 @@ def get_body_without_checks(bodyTokens):
     #     print(x)
     return checks, "(" + ",".join(modifiedBody) + ")"
 
-
 def create_check_function(tableName, checks, columns, idx = ""):
     function_name = "{}_{}".format(tableName,idx)
     # checks = [(LHS, operator, RHS)]
@@ -128,12 +127,10 @@ def create_trigger(tableName, idx = ""):
     s+=("  FOR EACH ROW EXECUTE FUNCTION {}_check_function();\n".format(function_name))
     return s
 
-
 def execute_ddl_query(cursor, filePath):
     with open(filePath, 'r') as file:
         query = file.read()
         cursor.execute(query)
-
 
 def execute_dml_query(cursor, filePath):
     with open(filePath, 'r') as file:
@@ -145,7 +142,6 @@ def execute_dml_query(cursor, filePath):
         row = output[len(output)-1][0]
         execution_time = row.split(':')[1].strip().split(' ')[0]
         return execution_time
-
 
 def compare_performance(host, name, user, password, input, output, insert):
     # Connect to the database
@@ -179,61 +175,67 @@ def compare_performance(host, name, user, password, input, output, insert):
     conn.commit()
     conn.close()
 
-
 parser = argparse.ArgumentParser(description="This program reads an SQL file and converts any check constraints found into triggers.")
-subparser = parser.add_subparsers(dest='command')
-parser.add_argument('-i', '--input_path', required=True, help='path to target SQL file')
-parser.add_argument('-o', '--output_path', required=True, help='path to output processed SQL file. Must be different from the input file')
 
-execute = subparser.add_parser('execute', help='run python3 check_constraint.py execute -h to see help options')
-execute.add_argument('--dbhost', type=str, required=True, help='database host')
-execute.add_argument('--dbname', type=str, required=True, help='database name')
-execute.add_argument('--username', type=str, required=True, help='username for database')
-execute.add_argument('--password', type=str, required=True, help='password for database')
-execute.add_argument('--sql_file_path', type=str, required=True, help='file path to .sql file with data to insert into db')
-parser.add_argument('-s', action='store_true')
+subparsers = parser.add_subparsers(dest='command')
+
+transform_parser = subparsers.add_parser('transform', help='convert check constraints in an SQL file to function triggers for each table')
+transform_parser.add_argument('input_path', help='path to target DDL SQL file')
+transform_parser.add_argument('output_path', help='path to output processed DDL SQL file')
+transform_parser.add_argument('-s', action='store_true', help="split function triggers by individual constraints")
+
+analyze_parser = subparsers.add_parser('analyze', help='compare performance between SQL files')
+analyze_parser.add_argument('input_path_1', help='path to first DDL SQL file')
+analyze_parser.add_argument('input_path_2', help='path to second DDL SQL file')
+analyze_parser.add_argument('input_path_3', help='path to DML SQL file to be used on tables created by both DDL SQL files')
+analyze_parser.add_argument('--dbhost', type=str, required=True, help='database host')
+analyze_parser.add_argument('--dbname', type=str, required=True, help='database name')
+analyze_parser.add_argument('--username', type=str, required=True, help='database username')
+analyze_parser.add_argument('--password', type=str, required=True, help='database password')
 
 args = parser.parse_args()
+command = args.command
 
-flag_s = args.s
-input_path = args.input_path
-output_path = args.output_path
+if command == 'transform':
+    flag_s = args.s
+    input_path = args.input_path
+    output_path = args.output_path
 
-if (input_path == output_path):
-    raise Exception("Input and output path cannot be the same!")
+    if (input_path == output_path):
+        raise Exception("Input and output path cannot be the same!")
 
-input_file = open(input_path, "r")
-output_file = open(output_path, "w")
-raw = input_file.read()
-raw = sp.format(raw, keyword_case="upper", strip_whitespace=True, identifier_case="upper", use_space_around_operators=True)
-statements = sp.parse(raw)
+    input_file = open(input_path, "r")
+    output_file = open(output_path, "w")
+    raw = input_file.read()
+    raw = sp.format(raw, keyword_case="upper", strip_whitespace=True, identifier_case="upper", use_space_around_operators=True)
+    statements = sp.parse(raw)
 
-for s in statements:
-    if s.get_type() != 'CREATE':
-        continue
-    
-    tokens = s.tokens
-    tableName = tokens[4]
+    for s in statements:
+        if s.get_type() != 'CREATE':
+            continue
+        
+        tokens = s.tokens
+        tableName = tokens[4]
 
-    bodyTokens = tokens[6].tokens
-    checks, modifiedBody = get_body_without_checks(bodyTokens)
-    columns = get_columns(s)
-    
-    newSqlQuery = create_new_query(tableName, modifiedBody)
-    newSqlQuery = sp.format(newSqlQuery, keyword_case="upper", identifier_case="upper")
+        bodyTokens = tokens[6].tokens
+        checks, modifiedBody = get_body_without_checks(bodyTokens)
+        columns = get_columns(s)
+        
+        newSqlQuery = create_new_query(tableName, modifiedBody)
+        newSqlQuery = sp.format(newSqlQuery, keyword_case="upper", identifier_case="upper")
 
-    output_file.write(newSqlQuery)
+        output_file.write(newSqlQuery)
 
-    if flag_s:
-        for idx, check in enumerate(checks):
-            output_file.write(create_check_function(tableName, [check], columns, str(idx)))
-            output_file.write(create_trigger(tableName, str(idx)))
-    else:
-        output_file.write(create_check_function(tableName, checks, columns))
-        output_file.write(create_trigger(tableName))
+        if flag_s:
+            for idx, check in enumerate(checks):
+                output_file.write(create_check_function(tableName, [check], columns, str(idx)))
+                output_file.write(create_trigger(tableName, str(idx)))
+        else:
+            output_file.write(create_check_function(tableName, checks, columns))
+            output_file.write(create_trigger(tableName))
 
-input_file.close()
-output_file.close()
+    input_file.close()
+    output_file.close()
 
-if args.command == 'execute':
-    compare_performance(args.dbhost, args.dbname, args.username, args.password, input_path, output_path, args.sql_file_path)
+elif command == 'analyze':
+    compare_performance(args.dbhost, args.dbname, args.username, args.password, args.input_path_1, args.input_path_2, args.input_path_3)
