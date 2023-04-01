@@ -9,7 +9,7 @@ CREATE OR REPLACE FUNCTION CUSTOMER__check_function()
   AS
   $$
   BEGIN
-	  IF (NEW.AGE >= 18 AND NEW.AGE <= 100 ) AND (NEW.EMAIL LIKE '%@%.%' ) AND (NEW.CREDIT_LIMIT >= 0 ) AND (( NEW.CITY = 'New York' AND NEW.COUNTRY = 'USA' ) OR ( NEW.CITY = 'London' AND NEW.COUNTRY = 'UK' ) OR ( NEW.CITY = 'Paris' AND NEW.COUNTRY = 'France' ) ) THEN
+	  IF (NEW.AGE >= 18 AND NEW.AGE <= 100 ) AND (NEW.EMAIL LIKE '%@%.%' ) AND (NEW.CREDIT_LIMIT >= 0 ) AND (( NEW.CITY = 'New York' AND NEW.COUNTRY = 'USA' ) OR ( NEW.CITY = 'London' AND NEW.COUNTRY = 'UK' ) OR ( NEW.CITY = 'Paris' AND NEW.COUNTRY = 'France' ) OR ( NEW.CITY = 'Paris' AND NEW.COUNTRY = 'France AGE France' ) ) THEN
 		   return NEW;
 	  END IF;
 	  RETURN NULL;

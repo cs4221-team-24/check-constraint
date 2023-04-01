@@ -40,10 +40,8 @@ def get_body_without_checks(bodyTokens):
         token = bodyTokens[i]
         body += str(token)
     for line in body.split(","):
-        # print(line)
         flag1 = line.find("CONSTRAINT")
         flag2 = line.find("CHECK")
-        # flag3 = line.find("PRIMARY KEY")
 
         # If there is a check statement
         if flag2 > -1:
@@ -77,7 +75,6 @@ def get_body_without_checks(bodyTokens):
 
 def create_check_function(tableName, checks, columns, idx = ""):
     function_name = "{}_{}".format(tableName,idx)
-    # checks = [(LHS, operator, RHS)]
     s = "\n\nCREATE OR REPLACE FUNCTION {}_check_function()\n".format(function_name)
     s+=("  RETURNS TRIGGER\n")
     s+=("  LANGUAGE PLPGSQL\n")
@@ -88,8 +85,12 @@ def create_check_function(tableName, checks, columns, idx = ""):
     conditions = []
     for check in checks:
         ss = ""
+        apos_count = 0
+        double_apos_count = 0
         for token in check.split(' '):
-            if token in columns:
+            apos_count += token.count("'")
+            double_apos_count += token.count('"')
+            if token in columns and apos_count % 2 == 0 and double_apos_count % 2 == 0: # Ensure identifier not in string
                 ss+="NEW." + token + " "
             else:
                 ss+= token + " "
@@ -105,7 +106,6 @@ def create_check_function(tableName, checks, columns, idx = ""):
     return s
     
 def create_trigger(tableName, idx = ""):
-    # checks = [(LHS, operator, RHS)]
     function_name = "{}_{}".format(tableName,idx)
     s = "CREATE TRIGGER {}_check_trigger\n".format(function_name)
     s+=("BEFORE INSERT ON {}\n".format(tableName))

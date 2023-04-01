@@ -12,6 +12,7 @@ CREATE TABLE customer (
     CONSTRAINT city_country_check CHECK (
         (city = 'New York' AND country = 'USA') OR
         (city = 'London' AND country = 'UK') OR
-        (city = 'Paris' AND country = 'France')
+        (city = 'Paris' AND country = 'France') OR
+        (city = 'Paris' AND country = 'France AGE France')
     )
 );
