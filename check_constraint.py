@@ -56,15 +56,28 @@ def get_body_without_checks(bodyTokens):
             checkStatement = line[flag2:]
             parameters = checkStatement[checkStatement.find("("):]
             parameters = parameters[1:parameters.find(")")]
-            checks.append("(" + parameters + ")")
+            checks.append(parameters)
         else:
             modifiedBody.append(line)
 
-    checks = list(map(lambda x: x[1:-1].split(' '), checks))
+    checks = list(map(lambda x: x.split(' '), checks))
+    # account for string with > 1 word, e.g. wen hao
+    newChecks = []
 
-    # for x in modifiedBody:
-    #     print(x)
-    return checks, "(" + ",".join(modifiedBody) + ")"
+    for idx, check in enumerate(checks):
+        newChecks.append([])
+        isString = False
+        for token in check:
+            if isString:
+                newChecks[idx][-1] += " " + token
+                if token[-1] == "'":
+                    isString = False
+                continue
+            if token[0] == "'" and token[-1] != "'":
+                isString = True
+            newChecks[idx].append(token)
+
+    return newChecks, "(" + ",".join(modifiedBody) + ")"
 
 def create_check_function(tableName, checks, columns, idx = ""):
     function_name = "{}_{}".format(tableName,idx)
@@ -98,8 +111,10 @@ def create_check_function(tableName, checks, columns, idx = ""):
                 RHS = check[idx]
 
             if RHS in columns:
+                
                 combinedConditions+="NEW.{} {} NEW.{}".format(LHS, OPERATOR, RHS)
             else:
+
                 combinedConditions+="NEW.{} {} {}".format(LHS, OPERATOR, RHS)
 
             if idx + 1 < cLen:
