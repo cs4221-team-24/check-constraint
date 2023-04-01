@@ -38,9 +38,9 @@ def get_body_without_checks(bodyTokens):
     body = ""
     for i in range(1, len(bodyTokens) - 1):
         token = bodyTokens[i]
-        # print(token)
         body += str(token)
     for line in body.split(","):
+        # print(line)
         flag1 = line.find("CONSTRAINT")
         flag2 = line.find("CHECK")
         # flag3 = line.find("PRIMARY KEY")
@@ -55,28 +55,24 @@ def get_body_without_checks(bodyTokens):
 
             checkStatement = line[flag2:]
             parameters = checkStatement[checkStatement.find("("):]
-            parameters = parameters[1:parameters.find(")")]
+            parameters = parameters[1:parameters.rfind(")")]
             checks.append(parameters)
         else:
             modifiedBody.append(line)
 
-    checks = list(map(lambda x: x.split(' '), checks))
-    # account for string with > 1 word, e.g. wen hao
+
+
     newChecks = []
-
-    for idx, check in enumerate(checks):
-        newChecks.append([])
-        isString = False
-        for token in check:
-            if isString:
-                newChecks[idx][-1] += " " + token
-                if token[-1] == "'":
-                    isString = False
-                continue
-            if token[0] == "'" and token[-1] != "'":
-                isString = True
-            newChecks[idx].append(token)
-
+    for check in checks:
+        ss = ""
+        for char in check:
+            if char == "(":
+                ss+= char + " "
+            elif char == ")":
+                ss+= " " + char
+            else:
+                ss+=char
+        newChecks.append(ss)
     return newChecks, "(" + ",".join(modifiedBody) + ")"
 
 def create_check_function(tableName, checks, columns, idx = ""):
@@ -91,39 +87,13 @@ def create_check_function(tableName, checks, columns, idx = ""):
     s+=("	  IF ")
     conditions = []
     for check in checks:
-        # example arrays of check
-        # [LastName, !=, 'fazil', OR, LastName, !=, "jim"]
-        # [LastName, !=, 'fazil']
-        cLen = len(check)
-
-        combinedConditions = ""
-        idx = 0
-        while idx < cLen:
-            LHS = check[idx]
-            idx+=1
-            OPERATOR = check[idx]
-            idx+=1
-            RHS = check[idx]
-
-            if RHS == "NOT":
-                OPERATOR+=" NOT"
-                idx+=1
-                RHS = check[idx]
-
-            if RHS in columns:
-                
-                combinedConditions+="NEW.{} {} NEW.{}".format(LHS, OPERATOR, RHS)
+        ss = ""
+        for token in check.split(' '):
+            if token in columns:
+                ss+="NEW." + token + " "
             else:
-
-                combinedConditions+="NEW.{} {} {}".format(LHS, OPERATOR, RHS)
-
-            if idx + 1 < cLen:
-                combinedConditions+= " {} ".format(check[idx + 1])
-            idx+= 2
-
-        if cLen > 3:
-            combinedConditions = "(" + combinedConditions + ")"
-        conditions.append(combinedConditions)
+                ss+= token + " "
+        conditions.append("(" + ss + ")")
 
     s+=" AND ".join(conditions)
     s+=(" THEN\n")
