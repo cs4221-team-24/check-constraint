@@ -24,6 +24,8 @@ def get_columns(statement):
             txt = token.value
             columns = txt[1:txt.rfind(")")].replace("\n","").split(",")
             for column in columns:
+                if not column:
+                    continue
                 c = ' '.join(column.split()).split()
                 c_name = c[0].replace('\"',"")
                 columnNames.append(c_name)
